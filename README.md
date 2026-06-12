@@ -1,9 +1,9 @@
 ### pueui-rsync
 A simple Node.js GUI for executing and monitoring pueue-powered `rsync` operations.
 
-I use this to automate syncs between my slow hard drives.
+I use this to automate copy tasks on my slow hard drives.
 
-pueue UI → pueui
+"pueue UI" → ✨ pueui
 
 Drag and drop source files and directories. Save your frequent destinations.
 ![drag-and-drop-transfer](./data/transfer.png)
