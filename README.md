@@ -16,7 +16,7 @@ Watch your queue in realtime.
 - **Node.js:** https://nodejs.org/en
 
 ### Usage
-1. Clone repository to /pueui and change directory:
+1. Clone repository to `/pueui` and change directory:
   ```bash
   cd /pueui
   ```
