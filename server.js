@@ -98,5 +98,4 @@ app.delete('/api/destinations/:name', (req, res) => {
   res.json({ success: true });
 });
 
-// Serve the app to router-connected devices.
-app.listen(PORT, '0.0.0.0', () => console.log(`pueui listening on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`pueui listening on http://localhost:${PORT}`));
