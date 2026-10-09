@@ -144,14 +144,6 @@ saveDestBtn.addEventListener('click', async () => {
 });
 
 // --- Status tab ---
-async function fetchStatus() {
-  try {
-    const res = await fetch('/api/status');
-    if (!res.ok) return;
-    renderStatus(await res.json());
-  } catch {}
-}
-
 function formatRsyncCommand(commandStr) {
 
   // Clean up any accidental leading/trailing whitespace or quotes
@@ -183,6 +175,17 @@ function formatRsyncCommand(commandStr) {
   return `${truncatePath(source, 32)} -> ${truncatePath(destination, 24)}`;
 }
 
+// Keep track of which completed task rows are expanded
+const expandedTasks = new Set();
+
+async function fetchStatus() {
+  try {
+    const res = await fetch('/api/status');
+    if (!res.ok) return;
+    renderStatus(await res.json());
+  } catch {}
+}
+
 function renderStatus(data) {
   const tbody = document.getElementById('status-body');
   const countEl = document.getElementById('status-count');
@@ -201,7 +204,11 @@ function renderStatus(data) {
     const { label, cls } = parseStatus(task.status);
     const cmd = formatRsyncCommand(task.command || task.original_command) || '';
     const started = formatDate(task.created_at || null);
-    return `<tr>
+    const isRunning = label === 'Running';
+    const isDone = cls === 'done';
+    const isExpanded = expandedTasks.has(task.id);
+
+    return `<tr class="${isRunning ? 'running-row' : ''} ${isDone ? 'completed-row' : ''}" data-task-id="${task.id}" style="${isDone ? 'cursor: pointer;' : ''}">
       <td class="id-cell">${task.id}</td>
       <td><span class="status-badge status-${cls}">${esc(label)}</span></td>
       <td class="cmd-cell" title="${esc(cmd)}">${esc(cmd)}</td>
@@ -209,9 +216,20 @@ function renderStatus(data) {
       <td class="action-cell">
         <button class="remove-btn" data-id="${task.id}">Remove</button>
       </td>
-    </tr>`;
+    </tr>
+    ${isRunning ? `<tr class="log-row" data-task-id="${task.id}">
+      <td colspan="5">
+        <div class="task-log-container">Loading log output...</div>
+      </td>
+    </tr>` : ''}
+    ${isDone ? `<tr class="log-row expandable-log-row ${isExpanded ? '' : 'hidden'}" data-task-id="${task.id}">
+      <td colspan="5">
+        <div class="task-log-container">Loading completion stats...</div>
+      </td>
+    </tr>` : ''}`;
   }).join('');
 
+  // Attach remove handlers
   tbody.querySelectorAll('.remove-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       btn.disabled = true;
@@ -224,6 +242,117 @@ function renderStatus(data) {
         fetchStatus();
       }
     });
+  });
+
+  // Attach click handlers to completed rows to toggle state and persist in expandedTasks
+  tbody.querySelectorAll('.completed-row').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.remove-btn')) return;
+      
+      const taskId = parseInt(row.dataset.taskId, 10);
+      const logRow = tbody.querySelector(`tr.expandable-log-row[data-task-id="${taskId}"]`);
+      
+      if (logRow) {
+        const isHidden = logRow.classList.toggle('hidden');
+        if (isHidden) {
+          expandedTasks.delete(taskId);
+        } else {
+          expandedTasks.add(taskId);
+        }
+      }
+    });
+  });
+
+  // Fetch and unpack logs for running and expanded completed tasks
+  tbody.querySelectorAll('.log-row').forEach(async (logRow) => {
+    const taskId = logRow.dataset.taskId;
+    const container = logRow.querySelector('.task-log-container');
+    
+    // Skip fetching logs for completed rows that are currently collapsed to save requests
+    if (logRow.classList.contains('expandable-log-row') && logRow.classList.contains('hidden')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/log`);
+      if (res.ok) {
+        const logData = await res.json();
+        let output = '';
+        if (typeof logData === 'string') {
+          output = logData;
+        } else if (logData[taskId]) {
+          const taskLog = logData[taskId];
+          output = typeof taskLog === 'string' 
+            ? taskLog 
+            : (taskLog.output || taskLog.output_lines?.join('\n') || JSON.stringify(taskLog, null, 2));
+        } else if (logData.output) {
+          output = logData.output;
+        } else {
+          output = JSON.stringify(logData, null, 2);
+        }
+
+       if (logRow.classList.contains('expandable-log-row')) {
+          const taskInfo = logData[taskId]?.task || logData.task;
+          const outputStr = output; // full output string
+
+          // Extract final transfer size from the last progress line (e.g., "2.06G 100%...")
+          const lines = outputStr.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+          const lastLine = lines.length > 0 ? lines[lines.length - 1] : '';
+          const sizeMatch = lastLine.match(/^([\d.,]+\w+)\s+\d+%/);
+          const transferSize = sizeMatch ? sizeMatch[1] : 'N/A';
+
+          // Compute elapsed time from task start and end timestamps
+          let elapsed = 'N/A';
+          if (taskInfo?.status?.Done?.start && taskInfo?.status?.Done?.end) {
+            const startTime = new Date(taskInfo.status.Done.start);
+            const endTime = new Date(taskInfo.status.Done.end);
+            const diffMs = endTime - startTime;
+            if (!isNaN(diffMs) && diffMs >= 0) {
+              const totalSecs = Math.floor(diffMs / 1000);
+              const mins = Math.floor(totalSecs / 60);
+              const secs = totalSecs % 60;
+              elapsed = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+            }
+          }
+
+          container.innerHTML = `
+            <div class="metrics-group" style="width: 100%; justify-content: space-around;">
+              <div><label>Transfer Size:</label> <span>${esc(transferSize)}</span></div>
+              <div><label>Elapsed Time:</label> <span>${esc(elapsed)}</span></div>
+            </div>
+          `;
+        } else {
+          if (output.includes('\r') || output.includes('\n')) {
+            const lines = output.split(/[\r\n]+/);
+            const validLines = lines.map(l => l.trim()).filter(Boolean);
+            output = validLines.length > 0 ? validLines[validLines.length - 1] : output;
+          }
+
+          const match = output.match(/(\d+)%\s+([^\s]+)\s+([^\s]+)/);
+          if (match) {
+            const [, percent, speed, eta] = match;
+            container.innerHTML = `
+              <div class="progress-container">
+                <div class="progress-bar-track">
+                  <div class="progress-bar-fill" style="width: ${percent}%;"></div>
+                </div>
+                <span class="progress-percent">${percent}%</span>
+              </div>
+              <div class="metrics-group">
+                <div><label>Speed:</label> <span>${esc(speed)}</span></div>
+                <div><label>ETA:</label> <span>${esc(eta)}</span></div>
+              </div>
+            `;
+          } else {
+            container.textContent = output || 'No output recorded yet.';
+          }
+        }
+      } else {
+        container.textContent = 'Failed to load log.';
+      }
+    } catch {
+      container.textContent = 'Failed to load log.';
+    }
   });
 }
 

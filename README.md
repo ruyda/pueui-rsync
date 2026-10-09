@@ -9,7 +9,8 @@ Drag and drop source files and directories. Save your frequent destinations.
 ![drag-and-drop-transfer](./data/transfer.png)
 
 Watch your queue in realtime.
-![drag-and-drop-transfer](./data/queue.png)
+<img width="1639" height="736" alt="image" src="https://github.com/user-attachments/assets/d7abcc32-d8f7-47a8-95b1-c950fdb13849" />
+
 
 ### Dependencies
 - **pueue:** https://github.com/Nukesor/pueue

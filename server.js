@@ -64,6 +64,20 @@ app.post('/api/queue', (req, res) => {
   });
 });
 
+app.get('/api/tasks/:id/log', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid task ID' });
+
+  execFile('pueue', ['log', '--json', String(id)], (err, stdout, stderr) => {
+    if (err) return res.status(500).json({ error: stderr || err.message });
+    try {
+      res.json(JSON.parse(stdout));
+    } catch {
+      res.status(500).json({ error: 'Failed to parse pueue log output' });
+    }
+  });
+});
+
 app.delete('/api/tasks/:id', (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) return res.status(400).json({ error: 'Invalid task ID' });
@@ -98,4 +112,4 @@ app.delete('/api/destinations/:name', (req, res) => {
   res.json({ success: true });
 });
 
-app.listen(PORT, () => console.log(`pueui listening on http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`pueui listening on http://localhost:${PORT}`));

@@ -387,3 +387,95 @@ tbody tr:hover { background: rgba(91,138,240,0.04); }
   padding: 48px;
   color: var(--text-muted);
 }
+
+/* Running task rows and expanded log row styling */
+tr.running-row td {
+  vertical-align: top;
+  padding-top: 16px;
+}
+
+tr.log-row {
+  background: var(--surface-raised);
+}
+
+tr.log-row:hover {
+  background: var(--surface-raised); /* Prevent hover color clash */
+}
+
+tr.log-row td {
+  padding: 4px;
+  border-bottom: 1px solid rgba(58, 58, 70, 0.5);
+}
+
+/* Align completed rows with running row vertical padding */
+tr.completed-row td {
+  vertical-align: top;
+  padding-top: 16px;
+}
+
+/* Hidden state for toggleable rows */
+tr.log-row.hidden {
+  display: none;
+}
+
+/* Stylized Progress Bar & Metrics Container */
+.task-log-container {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.progress-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress-bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--surface-raised);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent); /* Matches running badge color */
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+.progress-percent {
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 40px;
+  text-align: right;
+}
+
+.metrics-group {
+  display: flex;
+  gap: 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.metrics-group label {
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.metrics-group span span {
+  color: var(--text);
+  font-weight: 500;
+}
